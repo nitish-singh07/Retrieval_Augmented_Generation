@@ -1,15 +1,10 @@
 import express from "express";
-import documentRoutes from "./routes/documentRoutes";
-import { logger } from "./utils/logger";
-
+import documentRoute from "./routes/documentRoutes";
 const app = express();
 app.use(express.json());
+app.use("/api", documentRoute);
+const PORT: number = 3000;
 
-// Routes
-app.use("/api", documentRoutes);
-
-// Start server
-const PORT = 3000;
 app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
+  console.log("first");
 });

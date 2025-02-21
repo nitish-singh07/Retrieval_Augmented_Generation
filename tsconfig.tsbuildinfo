@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/controllers/chunk.ts","./src/controllers/genrateEmbedding.ts","./src/controllers/handleUpload.ts","./src/routes/documentRoutes.ts","./src/utils/upload.ts"],"version":"5.6.3"}
