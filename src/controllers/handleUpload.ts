@@ -4,7 +4,8 @@ import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 import { Request, Response } from "express";
 import { splitTextIntoChunks } from "./chunk";
-// import { generateEmbeddings } from "./genrateEmbedding";
+import { generateEmbeddings } from "./generateEmbedding";
+import { weaviateClient } from "../utils/weaviate";
 
 export const handleFileUpload = async (
   req: Request,
@@ -18,6 +19,7 @@ export const handleFileUpload = async (
 
     const filePath = req.file.path;
     const ext = path.extname(req.file.originalname).toLowerCase();
+    const documentId = req.file.originalname;
 
     let extractedText = "";
 
@@ -36,13 +38,43 @@ export const handleFileUpload = async (
     }
 
     const chunks = await splitTextIntoChunks(extractedText, 500);
+    const embeddings = await generateEmbeddings(chunks);
+    // Delete existing document entries if any
+    await weaviateClient.batch
+      .objectsBatchDeleter()
+      .withClassName("Document")
+      .withWhere({
+        operator: "Equal",
+        path: ["documentId"],
+        valueString: documentId,
+      })
+      .do();
 
-    // const embeddings = await generateEmbeddings(chunks);
-    // console.log("Embeddings:", embeddings);
+    // Store chunks with embeddings in Weaviate
+    const batchRequest = chunks.map((chunk, index) => ({
+      class: "Document",
+      properties: {
+        content: chunk,
+        documentId: documentId,
+        chunkIndex: index,
+      },
+      vector: embeddings[index],
+    }));
+
+    await weaviateClient.batch
+      .objectsBatcher()
+      .withObjects(...batchRequest)
+      .do();
 
     fs.unlinkSync(filePath); // Delete file after processing
-    res.json({ extractedText, chunks });
+    res.json({
+      message: "Document processed and stored successfully",
+      documentId,
+      chunksCount: chunks.length,
+    });
   } catch (error: any) {
-    res.status(500).json({ error: `Error extracting text: ${error.message}` });
+    res
+      .status(500)
+      .json({ error: `Error processing document: ${error.message}` });
   }
 };
